@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>크리퍼는 어디에?</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --night: #14201a;
+    --night-2: #1c2b22;
+    --grass-top: #6fae3f;
+    --grass-side: #4d7a2b;
+    --dirt: #8a5a34;
+    --dirt-dark: #6b4426;
+    --stone: #8f8f88;
+    --stone-dark: #5c5c57;
+    --creeper: #0fa348;
+    --creeper-dark: #0a6e30;
+    --tnt: #c73a2b;
+    --cream: #ece4cf;
+    --cream-dim: #b9b09a;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+      radial-gradient(circle at 20% 15%, rgba(255,255,255,0.08) 0%, transparent 2%),
+      radial-gradient(circle at 70% 30%, rgba(255,255,255,0.06) 0%, transparent 1.5%),
+      radial-gradient(circle at 85% 70%, rgba(255,255,255,0.05) 0%, transparent 1.5%),
+      radial-gradient(circle at 40% 80%, rgba(255,255,255,0.06) 0%, transparent 1.5%),
+      linear-gradient(180deg, var(--night) 0%, var(--night-2) 100%);
+    font-family: 'VT323', monospace;
+    color: var(--cream);
+    padding: 24px;
+  }
+
+  .panel {
+    width: 100%;
+    max-width: 480px;
+    background: #24352a;
+    border: 6px solid #10190f;
+    box-shadow:
+      inset 0 0 0 4px #3a5230,
+      0 12px 0 rgba(0,0,0,0.35);
+    padding: 28px 24px 24px;
+    position: relative;
+  }
+
+  .grass-strip {
+    height: 14px;
+    margin: -28px -24px 20px;
+    background:
+      repeating-linear-gradient(90deg, var(--grass-top) 0 14px, var(--grass-side) 14px 28px);
+    border-bottom: 4px solid var(--dirt-dark);
+  }
+
+  h1 {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 15px;
+    line-height: 1.9;
+    color: var(--cream);
+    text-align: center;
+    margin: 0 0 6px;
+    text-shadow: 3px 3px 0 #0a0f0a;
+  }
+
+  .sub {
+    text-align: center;
+    font-size: 19px;
+    color: var(--cream-dim);
+    margin: 0 0 22px;
+  }
+
+  .stage {
+    position: relative;
+    min-height: 96px;
+    margin-bottom: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: min-height 0.3s ease;
+  }
+  .stage.exploding {
+    min-height: 180px;
+  }
+  .stage.exploding .creeper-face { display: none; }
+
+  /* pixel creeper face, rendered from an 8x8 matrix */
+  .creeper-face {
+    display: grid;
+    grid-template-columns: repeat(8, 12px);
+    grid-template-rows: repeat(8, 12px);
+    box-shadow: 0 6px 0 rgba(0,0,0,0.4);
+    transition: transform 0.25s ease;
+  }
+  .px-L { background: #52d94a; }
+  .px-M { background: #2f9c2a; }
+  .px-D { background: #1a5e18; }
+  .px-Y { background: #b3b3b3; }
+  .px-K { background: #0d0f0a; }
+  .creeper-face.shake { animation: shake 0.4s ease; }
+
+  /* creeper explosion burst, shown when the player loses */
+  .explosion-burst {
+    display: none;
+    position: relative;
+    width: 100%;
+    height: 160px;
+    overflow: visible;
+  }
+  .stage.exploding .explosion-burst { display: block; }
+
+  .blast-flash {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 90px; height: 90px;
+    background: radial-gradient(circle, #ffffff 0%, #e4e4e4 45%, transparent 75%);
+    transform: translate(-50%, -50%) scale(0.2);
+    opacity: 0;
+    animation: flashPop 0.35s ease-out forwards;
+  }
+  @keyframes flashPop {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
+    30%  { opacity: 1; transform: translate(-50%, -50%) scale(1.3); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.9); }
+  }
+
+  /* big blocky gray smoke chunks that billow outward into a cloud */
+  .smoke-puff {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: var(--size); height: var(--size);
+    background: var(--tone);
+    transform: translate(-50%, -50%) scale(0.4);
+    opacity: 0;
+    animation: puffDrift 1.15s ease-out forwards;
+    animation-delay: var(--delay);
+  }
+  @keyframes puffDrift {
+    0%   { opacity: 0;    transform: translate(-50%, -50%) translate(0, 0) scale(0.4) rotate(0deg); }
+    18%  { opacity: 0.95; }
+    100% { opacity: 0;    transform: translate(-50%, -50%) translate(var(--tx), var(--ty)) scale(1.7) rotate(var(--rot)); }
+  }
+
+  .chunk {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: var(--size); height: var(--size);
+    background: var(--tone);
+    transform: translate(-50%, -50%);
+    opacity: 1;
+    animation: chunkFly 0.85s cubic-bezier(.2,.7,.3,1) forwards;
+    animation-delay: var(--delay);
+  }
+  @keyframes chunkFly {
+    0%   { transform: translate(-50%, -50%) translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
+    65%  { opacity: 1; }
+    100% { transform: translate(-50%, -50%) translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0.35); opacity: 0; }
+  }
+
+  .panel.shake-panel { animation: panelShake 0.5s ease; }
+  @keyframes panelShake {
+    0%, 100% { transform: translate(0, 0); }
+    20% { transform: translate(-6px, 2px); }
+    40% { transform: translate(6px, -2px); }
+    60% { transform: translate(-4px, 3px); }
+    80% { transform: translate(4px, -3px); }
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0) rotate(0); }
+    25% { transform: translateX(-4px) rotate(-3deg); }
+    75% { transform: translateX(4px) rotate(3deg); }
+  }
+
+  .choices {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .block-btn {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 12px;
+    color: var(--cream);
+    background: var(--dirt);
+    border: none;
+    box-shadow:
+      inset -5px -5px 0 var(--dirt-dark),
+      inset 5px 5px 0 rgba(255,255,255,0.15);
+    padding: 18px 4px;
+    cursor: pointer;
+    letter-spacing: 1px;
+  }
+  .block-btn:hover:not(:disabled) {
+    filter: brightness(1.12);
+  }
+  .block-btn:active:not(:disabled) {
+    transform: translateY(2px);
+  }
+  .block-btn:disabled {
+    cursor: default;
+    opacity: 0.55;
+  }
+  .block-btn.picked {
+    background: var(--stone);
+    box-shadow:
+      inset -5px -5px 0 var(--stone-dark),
+      inset 5px 5px 0 rgba(255,255,255,0.15);
+  }
+
+  .message-box {
+    min-height: 78px;
+    background: #10170f;
+    border: 3px solid #050804;
+    padding: 14px 16px;
+    font-size: 21px;
+    line-height: 1.5;
+    color: var(--cream);
+    white-space: pre-wrap;
+  }
+  .message-box .safe { color: #8fe27a; }
+  .message-box .danger { color: #ff8f7a; }
+
+  .countdown {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 34px;
+    color: var(--tnt);
+    text-align: center;
+    margin-top: 10px;
+    text-shadow: 3px 3px 0 #2a0a05;
+    min-height: 44px;
+  }
+
+  .retry-btn {
+    display: block;
+    margin: 18px auto 0;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    color: var(--cream);
+    background: var(--grass-side);
+    border: none;
+    box-shadow:
+      inset -4px -4px 0 #2f4a1c,
+      inset 4px 4px 0 rgba(255,255,255,0.18);
+    padding: 12px 18px;
+    cursor: pointer;
+    letter-spacing: 1px;
+  }
+  .retry-btn:active { transform: translateY(2px); }
+  .retry-btn.hidden { display: none; }
+
+  @media (max-width: 380px) {
+    h1 { font-size: 12px; }
+    .block-btn { font-size: 10px; padding: 14px 2px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="panel">
+  <div class="grass-strip"></div>
+  <h1>크리퍼는 어디에?</h1>
+  <p class="sub">세 블록 중 하나에 크리퍼가 숨어있어요</p>
+
+  <div class="stage" id="stage">
+    <div class="creeper-face" id="creeperFace"></div>
+    <div class="explosion-burst" id="explosionBurst"></div>
+  </div>
+
+  <div class="choices" id="choices">
+    <button class="block-btn" data-choice="1번">1번</button>
+    <button class="block-btn" data-choice="2번">2번</button>
+    <button class="block-btn" data-choice="3번">3번</button>
+  </div>
+
+  <div class="message-box" id="messageBox">블록을 하나 골라서 크리퍼를 찾아보세요.</div>
+  <div class="countdown" id="countdown"></div>
+
+  <button class="retry-btn hidden" id="retryBtn">다시 도전하기</button>
+</div>
+
+<script>
+  // 8x8 creeper face, matched to the reference screenshot's layout:
+  // L/M/D = bright/mid/dark green camo, Y = gray fleck, K = black (eyes+mouth mass)
+  const FACE_MATRIX = [
+    "LDMYYLMD",
+    "DLMMDMMY",
+    "MKKLMKKY",
+    "MKKMDKKM",
+    "MLLKKYDL",
+    "LDKKKKLY",
+    "YMKKKKMD",
+    "LLKLLKDL"
+  ];
+
+  function buildFace() {
+    const face = document.getElementById('creeperFace');
+    const classMap = { L: 'px-L', M: 'px-M', D: 'px-D', Y: 'px-Y', K: 'px-K' };
+    FACE_MATRIX.forEach(row => {
+      [...row].forEach(ch => {
+        const cell = document.createElement('div');
+        cell.className = classMap[ch];
+        face.appendChild(cell);
+      });
+    });
+  }
+  buildFace();
+
+  const choicesEl = document.getElementById('choices');
+  const messageBox = document.getElementById('messageBox');
+  const countdownEl = document.getElementById('countdown');
+  const retryBtn = document.getElementById('retryBtn');
+  const creeperFace = document.getElementById('creeperFace');
+  const options = ["1번", "2번", "3번"];
+
+  function pickBoom() {
+    return options[Math.floor(Math.random() * options.length)];
+  }
+
+  let boom = pickBoom();
+
+  function handlePick(e) {
+    const btn = e.currentTarget;
+    const num = btn.dataset.choice;
+
+    [...choicesEl.children].forEach(b => {
+      b.disabled = true;
+      if (b === btn) b.classList.add('picked');
+    });
+
+    if (num === boom) {
+      messageBox.innerHTML = '<span class="safe">크리퍼를 찾았어요! 생존하셨습니다.</span>';
+      creeperFace.classList.add('shake');
+      finishRound();
+    } else {
+      messageBox.innerHTML = '<span class="danger">땡! 크리퍼가 곧 터져요! 도망가세요!</span>';
+      creeperFace.classList.add('shake');
+      runCountdown(3);
+    }
+  }
+
+  const stageEl = document.getElementById('stage');
+  const panelEl = document.querySelector('.panel');
+  const explosionBurst = document.getElementById('explosionBurst');
+
+  function runCountdown(n) {
+    if (n === 0) {
+      countdownEl.textContent = '펑!';
+      messageBox.innerHTML += '\n크리퍼가 터졌어요! 도망가지 못했어요...';
+      triggerExplosion();
+      finishRound();
+      return;
+    }
+    countdownEl.textContent = n;
+    setTimeout(() => runCountdown(n - 1), 1000);
+  }
+
+  // blocky smoke/spark tones, matching creeper explosion particles
+  const CHUNK_TONES = ['#f0f0f0', '#f0f0f0', '#d6d6d6', '#d6d6d6', '#b0b0b0', '#b0b0b0', '#8a8a8a', '#5c5c5c', '#3a3a3a', '#52d94a', '#1a5e18'];
+  const SMOKE_TONES = ['#f5f5f5', '#e2e2e2', '#cfcfcf', '#b8b8b8', '#9c9c9c', '#7e7e7e', '#5f5f5f'];
+
+  function buildExplosion() {
+    explosionBurst.innerHTML = '';
+    const flash = document.createElement('div');
+    flash.className = 'blast-flash';
+    explosionBurst.appendChild(flash);
+
+    // big billowing gray smoke chunks (the bulk of the cloud)
+    const puffCount = 16;
+    for (let i = 0; i < puffCount; i++) {
+      const angle = (Math.PI * 2 * i) / puffCount + (Math.random() * 0.5 - 0.25);
+      const dist = 20 + Math.random() * 48;
+      const tx = Math.cos(angle) * dist;
+      const ty = Math.sin(angle) * dist * 0.75 - 18;
+      const size = 22 + Math.random() * 26;
+      const tone = SMOKE_TONES[Math.floor(Math.random() * SMOKE_TONES.length)];
+      const delay = Math.random() * 0.12;
+      const rot = (Math.random() * 360 - 180) + 'deg';
+
+      const puff = document.createElement('span');
+      puff.className = 'smoke-puff';
+      puff.style.setProperty('--tx', tx.toFixed(1) + 'px');
+      puff.style.setProperty('--ty', ty.toFixed(1) + 'px');
+      puff.style.setProperty('--rot', rot);
+      puff.style.setProperty('--size', size.toFixed(1) + 'px');
+      puff.style.setProperty('--tone', tone);
+      puff.style.setProperty('--delay', delay.toFixed(2) + 's');
+      explosionBurst.appendChild(puff);
+    }
+
+    // smaller fast-flying chips on top for texture
+    const count = 22;
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + (Math.random() * 0.4 - 0.2);
+      const dist = 55 + Math.random() * 60;
+      const tx = Math.cos(angle) * dist;
+      const ty = Math.sin(angle) * dist * 0.8 - 15;
+      const size = 6 + Math.random() * 9;
+      const tone = CHUNK_TONES[Math.floor(Math.random() * CHUNK_TONES.length)];
+      const delay = Math.random() * 0.08;
+      const rot = (Math.random() * 360 - 180) + 'deg';
+
+      const chunk = document.createElement('span');
+      chunk.className = 'chunk';
+      chunk.style.setProperty('--tx', tx.toFixed(1) + 'px');
+      chunk.style.setProperty('--ty', ty.toFixed(1) + 'px');
+      chunk.style.setProperty('--rot', rot);
+      chunk.style.setProperty('--size', size.toFixed(1) + 'px');
+      chunk.style.setProperty('--tone', tone);
+      chunk.style.setProperty('--delay', delay.toFixed(2) + 's');
+      explosionBurst.appendChild(chunk);
+    }
+  }
+
+  function triggerExplosion() {
+    stageEl.classList.add('exploding');
+    buildExplosion();
+    panelEl.classList.add('shake-panel');
+    setTimeout(() => panelEl.classList.remove('shake-panel'), 500);
+  }
+
+  function finishRound() {
+    setTimeout(() => {
+      retryBtn.classList.remove('hidden');
+    }, 400);
+  }
+
+  function resetGame() {
+    boom = pickBoom();
+    countdownEl.textContent = '';
+    messageBox.textContent = '블록을 하나 골라서 크리퍼를 찾아보세요.';
+    creeperFace.classList.remove('shake');
+    stageEl.classList.remove('exploding');
+    explosionBurst.innerHTML = '';
+    retryBtn.classList.add('hidden');
+    [...choicesEl.children].forEach(b => {
+      b.disabled = false;
+      b.classList.remove('picked');
+    });
+  }
+
+  [...choicesEl.children].forEach(b => b.addEventListener('click', handlePick));
+  retryBtn.addEventListener('click', resetGame);
+</script>
+
+</body>
+</html>
