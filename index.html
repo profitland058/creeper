@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <title>크리퍼는 어디에?</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <style>
   :root {
     --night: #14201a;
@@ -75,6 +77,13 @@
     font-size: 19px;
     color: var(--cream-dim);
     margin: 0 0 22px;
+  }
+
+  .explosion-counter {
+    text-align: center;
+    font-size: 17px;
+    color: #ff9a7a;
+    margin: -14px 0 20px;
   }
 
   .stage {
@@ -268,6 +277,7 @@
   <div class="grass-strip"></div>
   <h1>크리퍼는 어디에?</h1>
   <p class="sub">세 블록 중 하나에 크리퍼가 숨어있어요</p>
+  <p class="explosion-counter">오늘 폭발한 크리퍼 수: <span id="explosionCount">-</span></p>
 
   <div class="stage" id="stage">
     <div class="creeper-face" id="creeperFace"></div>
@@ -312,6 +322,48 @@
     });
   }
   buildFace();
+
+  // ── Firebase 설정 ──
+  const firebaseConfig = {
+    apiKey: "AIzaSyAvKKVDAAZvQ4NlNdQrkSe8eORh6uGPJmE",
+    authDomain: "creeper-77cb9.firebaseapp.com",
+    databaseURL: "https://creeper-77cb9-default-rtdb.firebaseio.com",
+    projectId: "creeper-77cb9",
+    storageBucket: "creeper-77cb9.firebasestorage.app",
+    messagingSenderId: "324486121620",
+    appId: "1:324486121620:web:278b4b9f6684bf6a6e8c81",
+    measurementId: "G-FF1TXYL641",
+  };
+
+  let db = null;
+  try {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+  } catch (e) {
+    console.warn('Firebase 초기화 실패 (설정값을 아직 안 채우셨다면 정상입니다):', e);
+  }
+
+  const explosionCountEl = document.getElementById('explosionCount');
+
+  function todayKey() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function watchTodayCount() {
+    if (!db) { explosionCountEl.textContent = '0'; return; }
+    const ref = db.ref('explosions/' + todayKey());
+    ref.on('value', (snap) => {
+      explosionCountEl.textContent = snap.val() || 0;
+    });
+  }
+  watchTodayCount();
+
+  function incrementExplosionCount() {
+    if (!db) return;
+    const ref = db.ref('explosions/' + todayKey());
+    ref.transaction((current) => (current || 0) + 1);
+  }
 
   const choicesEl = document.getElementById('choices');
   const messageBox = document.getElementById('messageBox');
@@ -422,6 +474,7 @@
   function triggerExplosion() {
     stageEl.classList.add('exploding');
     buildExplosion();
+    incrementExplosionCount();
     panelEl.classList.add('shake-panel');
     setTimeout(() => panelEl.classList.remove('shake-panel'), 500);
   }
