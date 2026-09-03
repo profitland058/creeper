@@ -269,12 +269,150 @@
     h1 { font-size: 12px; }
     .block-btn { font-size: 10px; padding: 14px 2px; }
   }
+
+  /* tab navigation */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+  }
+  .tab-btn {
+    flex: 1;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    color: var(--cream-dim);
+    background: #182118;
+    border: none;
+    box-shadow: inset 0 -3px 0 #0a0f0a;
+    padding: 10px 4px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+  }
+  .tab-btn.active {
+    color: var(--cream);
+    background: var(--dirt);
+    box-shadow: inset -4px -4px 0 var(--dirt-dark), inset 4px 4px 0 rgba(255,255,255,0.15);
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* zombie-villager item grid */
+  .item-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .item-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+    color: var(--cream);
+    background: var(--dirt);
+    border: none;
+    box-shadow: inset -4px -4px 0 var(--dirt-dark), inset 4px 4px 0 rgba(255,255,255,0.15);
+    padding: 10px 4px 12px;
+    cursor: pointer;
+  }
+  .item-btn:hover:not(:disabled) { filter: brightness(1.12); }
+  .item-btn:active:not(:disabled) { transform: translateY(2px); }
+  .item-btn:disabled { cursor: default; opacity: 0.55; }
+  .item-btn.picked {
+    background: var(--stone);
+    box-shadow: inset -4px -4px 0 var(--stone-dark), inset 4px 4px 0 rgba(255,255,255,0.15);
+  }
+
+  .item-icon { position: relative; width: 40px; height: 40px; }
+
+  .pixel-icon {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    width: 40px; height: 40px;
+  }
+
+  .message-box { text-align: center; }
+  .message-box .neutral, .outcome-label.neutral { color: var(--cream-dim); }
+  .message-box .peace, .outcome-label.peace { color: #ff9ad1; }
+  .outcome-label.safe { color: #8fe27a; }
+  .outcome-label.danger { color: #ff8f7a; }
+
+  .outcome-label {
+    text-align: center;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 15px;
+    letter-spacing: 1px;
+    margin: 12px 0 0;
+    min-height: 15px;
+  }
+
+  /* zombie / villager face pair */
+  .pixel-face {
+    display: grid;
+    grid-template-columns: repeat(8, 12px);
+    grid-template-rows: repeat(8, 12px);
+    box-shadow: 0 6px 0 rgba(0,0,0,0.4);
+  }
+  .face-pair { display: flex; justify-content: center; gap: 26px; margin-bottom: 22px; }
+  .face-slot { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .face-label { font-family: 'VT323', monospace; font-size: 17px; color: var(--cream-dim); }
+
+  /* fullscreen death screen */
+  .death-screen {
+    display: none;
+    position: fixed; inset: 0;
+    z-index: 1000;
+    background: radial-gradient(ellipse at center, #4a0d0d 0%, #200707 65%, #0a0202 100%);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    opacity: 0;
+    animation: deathFade 0.6s ease forwards;
+  }
+  .death-screen.show { display: flex; }
+  @keyframes deathFade { to { opacity: 1; } }
+  .death-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 30px;
+    color: #ff4d4d;
+    text-shadow: 4px 4px 0 #3a0000;
+    margin-bottom: 18px;
+    text-align: center;
+  }
+  .death-sub {
+    font-family: 'VT323', monospace;
+    font-size: 22px;
+    color: #e8c9c9;
+    margin-bottom: 32px;
+    text-align: center;
+  }
+  .death-btn {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 12px;
+    color: #e8c9c9;
+    background: #3a2020;
+    border: 2px solid #1a0f0f;
+    padding: 12px 24px;
+    cursor: pointer;
+  }
+  .death-btn:hover { background: #4a2828; }
+  .death-btn:active { transform: translateY(2px); }
 </style>
 </head>
 <body>
 
 <div class="panel">
   <div class="grass-strip"></div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="creeper">크리퍼 게임</button>
+    <button class="tab-btn" data-tab="zombie">주민 구하기</button>
+  </div>
+
+  <div class="tab-panel active" id="tab-creeper">
   <h1>크리퍼는 어디에?</h1>
   <p class="sub">세 블록 중 하나에 크리퍼가 숨어있어요</p>
   <p class="explosion-counter">오늘 폭발한 크리퍼 수: <span id="explosionCount">-</span></p>
@@ -294,6 +432,62 @@
   <div class="countdown" id="countdown"></div>
 
   <button class="retry-btn hidden" id="retryBtn">다시 도전하기</button>
+  </div>
+
+  <div class="tab-panel" id="tab-zombie">
+  <h1>주민을 구하라!</h1>
+  <p class="sub">좀비로부터 주민을 구할 무기를 골라주세요</p>
+
+  <div class="face-pair">
+    <div class="face-slot">
+      <div class="pixel-face" id="zombieFace"></div>
+      <span class="face-label">좀비</span>
+    </div>
+    <div class="face-slot">
+      <div class="pixel-face" id="villagerFace"></div>
+      <span class="face-label">주민</span>
+    </div>
+  </div>
+
+  <div class="item-grid" id="itemGrid">
+    <button class="item-btn" data-item="다이아몬드 검">
+      <span class="pixel-icon" id="iconSword"></span>
+      다이아몬드 검
+    </button>
+    <button class="item-btn" data-item="닭고기">
+      <span class="pixel-icon" id="iconChicken"></span>
+      닭고기
+    </button>
+    <button class="item-btn" data-item="잔디 블록">
+      <span class="pixel-icon" id="iconGrass"></span>
+      잔디 블록
+    </button>
+    <button class="item-btn" data-item="민들레">
+      <span class="pixel-icon" id="iconFlower"></span>
+      민들레
+    </button>
+    <button class="item-btn" data-item="나무 곡괭이">
+      <span class="pixel-icon" id="iconPickaxe"></span>
+      나무 곡괭이
+    </button>
+    <button class="item-btn" data-item="tnt">
+      <span class="pixel-icon" id="iconTnt"></span>
+      TNT
+    </button>
+  </div>
+
+  <div class="message-box" id="zombieMessage">주민을 구할 아이템을 골라보세요.</div>
+  <div class="outcome-label" id="zombieLabel"></div>
+  <div class="countdown" id="zombieCountdown"></div>
+
+  <button class="retry-btn hidden" id="zombieRetryBtn">다시 선택하기</button>
+  </div>
+</div>
+
+<div class="death-screen" id="deathScreen">
+  <div class="death-title">You Died!</div>
+  <div class="death-sub" id="deathSub">좀비에게 목숨을 잃었습니다</div>
+  <button class="death-btn" id="deathRespawnBtn">다시 시작하기</button>
 </div>
 
 <script>
@@ -322,6 +516,189 @@
     });
   }
   buildFace();
+
+  // renderer for icons/faces sampled directly from the reference images (8x8, null = transparent)
+  function renderPixelGrid(id, rows) {
+    const el = document.getElementById(id);
+    rows.forEach(row => {
+      row.forEach(color => {
+        const cell = document.createElement('div');
+        if (color) cell.style.background = color;
+        el.appendChild(cell);
+      });
+    });
+  }
+
+  const ZOMBIE_PIXELS = [
+    ['#497439', '#446d35', '#4b7537', '#3d672f', '#395f2a', '#3c632f', '#446d35', '#456a36'],
+    ['#446d35', '#446d35', '#446e35', '#4f7d3d', '#5a943f', '#5b9043', '#466d36', '#3e6833'],
+    ['#456e37', '#689057', '#6e955b', '#799c65', '#73955c', '#70965c', '#5e8648', '#517e40'],
+    ['#648552', '#6b8c57', '#648452', '#698756', '#5b7c49', '#70925b', '#527a3e', '#537c3f'],
+    ['#6a8b56', '#1a1d18', '#1c1f1b', '#6b8b51', '#6f9059', '#1a1d19', '#1c1f1a', '#648552'],
+    ['#4f7b37', '#678d4f', '#718e59', '#385327', '#3a5427', '#6b9455', '#4d7e38', '#3c672b'],
+    ['#497034', '#487433', '#3f652d', '#4d6d30', '#4d6d30', '#395926', '#447031', '#40662f'],
+    ['#365725', '#345523', '#3a5b29', '#395b28', '#416630', '#395b28', '#436731', '#3c602b'],
+  ];
+  renderPixelGrid('zombieFace', ZOMBIE_PIXELS);
+
+  const VILLAGER_PIXELS = [
+    ['#bf8b73', '#b67c68', '#bf8b74', '#b67c68', '#b67c68', '#b67c68', '#bf8b73', '#b67c68'],
+    ['#bf8b73', '#b67c68', '#b67c68', '#b67c68', '#b67c68', '#b67c68', '#bf8b73', '#b67c68'],
+    ['#bf8b73', '#b67c68', '#b67c68', '#b67c68', '#b67c68', '#b67c68', '#bf8b73', '#b67c68'],
+    ['#b67c68', '#31210a', '#31210a', '#31210a', '#31210a', '#31210a', '#31210a', '#b37a66'],
+    ['#bf8b73', '#fefefd', '#02960a', '#b57c68', '#b67c68', '#05960b', '#f9fcf8', '#bf8e76'],
+    ['#915e43', '#b47c63', '#b78373', '#915e43', '#915e43', '#bf896d', '#b47c63', '#925e43'],
+    ['#915e43', '#b47c63', '#794033', '#915e42', '#915e43', '#7a4133', '#b37b62', '#925e43'],
+    ['#915e43', '#b47c63', '#b47c63', '#915e43', '#915e43', '#b37b62', '#b47c63', '#925e43'],
+  ];
+  renderPixelGrid('villagerFace', VILLAGER_PIXELS);
+
+  const SWORD_PIXELS = [
+    [null, null, null, null, null, null, '#2e645a', '#30645a'],
+    [null, null, null, null, null, '#44786e', '#4fd2be', '#297470'],
+    [null, null, null, null, '#1f6358', '#35b7a1', '#21ae9a', '#08393b'],
+    [null, null, '#16594c', '#3a7369', '#0c9f86', '#07c1a3', '#226360', null],
+    [null, null, '#195e51', '#00705f', '#00b799', '#11736a', null, null],
+    [null, null, '#66735c', '#0f5a43', '#0e5d54', null, null, null],
+    [null, '#03473a', '#52491a', '#4e4d32', '#0b413e', '#114043', null, null],
+    [null, '#003933', '#08413a', '#635945', '#406667', '#4f7275', null, null],
+  ];
+  renderPixelGrid('iconSword', SWORD_PIXELS);
+
+  const CHICKEN_PIXELS = [
+    [null, '#c67f64', '#d38a6f', '#d58c71', '#cd856a', '#c17456', null, null],
+    ['#d0937b', '#d08f76', '#eea48c', '#de977e', '#de977c', '#cd886d', '#c38673', null],
+    ['#bd6c4d', '#e1967b', '#e89e84', '#f6b8a3', '#ffd7c8', '#ffd1c0', '#c67e67', '#934d3b'],
+    ['#cc8165', '#d98c71', '#eead97', '#ffdacb', '#ffd7c8', '#fdc0ad', '#f6af97', '#b8735f'],
+    ['#cd7f63', '#f6ae96', '#cf866b', '#e0a088', '#da947a', '#eca289', '#e1987e', '#ac6957'],
+    ['#ce8060', '#d3866a', '#c5785c', '#fecdbb', '#fec1ab', '#c1765b', '#b87058', '#904b39'],
+    ['#dd9d76', '#b2674c', '#d38667', '#f4b29c', '#d4876c', '#a05843', '#9c5b4b', null],
+    [null, '#ca9074', '#b46f51', '#a65e47', '#8f4736', null, null, null],
+  ];
+  renderPixelGrid('iconChicken', CHICKEN_PIXELS);
+
+  const GRASS_PIXELS = [
+    [null, null, '#6d9164', '#45753a', '#457639', '#57824f', null, null],
+    ['#56824c', '#447739', '#417534', '#3a6f2f', '#3a6f2e', '#386d2b', '#718433', null],
+    ['#3e602d', '#3a692c', '#3b6e2d', '#396e2b', '#3a6f2e', '#3a6d2d', '#386126', '#404e1f'],
+    ['#704829', '#544720', '#395a25', '#38652b', '#305c25', '#2f421b', '#32391a', '#4f331c'],
+    ['#754827', '#6f4425', '#633e22', '#583e1e', '#46381d', '#493119', '#54331b', '#593820'],
+    ['#714626', '#764724', '#714420', '#714423', '#5a351b', '#52321a', '#513119', '#5b391f'],
+    ['#825635', '#744b2d', '#714523', '#6e4627', '#563219', '#5a361d', '#58371f', '#5f3e28'],
+    [null, '#baafa7', '#885f41', '#7e4f2d', '#603e25', '#614631', '#a69487', null],
+  ];
+  renderPixelGrid('iconGrass', GRASS_PIXELS);
+
+  const FLOWER_PIXELS = [
+    [null, null, null, '#ffe51d', '#ffe217', '#ffe828', null, null],
+    [null, '#fff8ba', '#ffe933', '#ffcf00', '#fead00', '#feb200', '#ffeb57', null],
+    ['#fff264', '#ffe238', '#f9a600', '#fed208', '#db8400', '#e29200', '#ffd609', '#ffea4b'],
+    [null, '#fff8bf', '#ffe71f', '#966e00', '#b9af00', '#d9d003', '#ffea54', null],
+    ['#2e8a1a', '#188a00', '#449c1c', '#239800', '#1e8e00', '#1e8900', null, null],
+    ['#399028', '#40a22e', '#1d8800', '#3ab200', '#339c01', '#449c15', '#5eaf42', '#44a335'],
+    [null, '#b7dcb0', '#147b00', '#3bb105', '#259100', '#1b8600', '#349a1c', '#148100'],
+    [null, null, null, '#389a08', '#198800', '#148600', '#90c989', null],
+  ];
+  renderPixelGrid('iconFlower', FLOWER_PIXELS);
+
+  const PICKAXE_PIXELS = [
+    [null, null, '#69532d', '#553c11', '#513b10', '#5b461e', '#84704e', '#9e8557'],
+    [null, null, '#583e0f', '#472f01', '#402a03', '#674403', '#654302', '#58421c'],
+    [null, null, null, null, '#857253', '#5d3f09', '#634103', '#493817'],
+    [null, null, null, '#654d21', '#6b4a0d', '#43300b', '#3f2903', '#452e05'],
+    [null, null, '#634b22', '#6b4a0d', '#554222', '#9b9486', '#352302', '#462f06'],
+    [null, '#6d5730', '#63440b', '#43300b', '#9b9486', null, '#3b2908', '#4c350c'],
+    ['#786236', '#5a3b02', '#594621', '#3b2f15', null, null, '#342916', '#3a301e'],
+    ['#4c3813', '#4d370d', null, null, null, null, null, null],
+  ];
+  renderPixelGrid('iconPickaxe', PICKAXE_PIXELS);
+
+  const TNT_PIXELS = [
+    [null, null, '#e85335', '#c8321d', '#be2e18', '#d94122', null, null],
+    ['#d53729', '#bf3523', '#982211', '#5f3033', '#5e1a1a', '#8c1f17', '#a42217', '#cc3c29'],
+    ['#b91100', '#ab1400', '#a11c0c', '#613134', '#66272e', '#832820', '#9f1100', '#830c00'],
+    ['#b05e5b', '#9d0e05', '#a40f00', '#ab1400', '#971300', '#7c0b00', '#780700', '#7f3933'],
+    ['#aaa1a7', '#6a6675', '#966063', '#9c1e15', '#7b0b01', '#6b3333', '#645d64', '#65626a'],
+    ['#ac1710', '#8d3c38', '#86767f', '#827c8a', '#7e7a80', '#605b61', '#64373b', '#720d08'],
+    ['#a60b12', '#9b0700', '#9b0b00', '#993831', '#7b403e', '#6e0600', '#770700', '#7e0b06'],
+    [null, '#ba5e59', '#9e050c', '#9b0400', '#7b0600', '#7c0e0a', '#9c4b4b', null],
+  ];
+  renderPixelGrid('iconTnt', TNT_PIXELS);
+
+  // ── tab switching ──
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ── 주민 구하기 게임 ──
+  const ZOMBIE_OUTCOMES = {
+    "다이아몬드 검": { cls: 'danger', text: '좀비를 물리쳤어요! 하지만 힘을 얻은 주민이 당신도 위협합니다. 도망치세요!', deathSub: '힘을 얻은 주민에게 목숨을 잃었습니다' },
+    "닭고기":        { cls: 'safe',   text: '좀비에게 닭고기를 미끼로 던지고 도망치는 데 성공했어요!', label: '주민 생존' },
+    "잔디 블록":      { cls: 'neutral', text: '잔디 블록으로 좀비를 공격할 수 없습니다.', label: '실패!' },
+    "민들레":        { cls: 'peace',  text: '좀비가 주민의 수줍은 고백을 받아줬어요!', label: '평화 달성!' },
+    "나무 곡괭이":     { cls: 'neutral', text: '나무 곡괭이는 좀비를 물리치기에 너무 약한 무기네요.', label: '실패!' },
+    "tnt":          { cls: 'danger', text: '폭탄이 터져요! 위험해요!', deathSub: '폭발에 휘말려 목숨을 잃었습니다' },
+  };
+
+  const itemGrid = document.getElementById('itemGrid');
+  const zombieMessage = document.getElementById('zombieMessage');
+  const zombieLabelEl = document.getElementById('zombieLabel');
+  const zombieCountdownEl = document.getElementById('zombieCountdown');
+  const zombieRetryBtn = document.getElementById('zombieRetryBtn');
+  const deathScreen = document.getElementById('deathScreen');
+  const deathSubEl = document.getElementById('deathSub');
+  const deathRespawnBtn = document.getElementById('deathRespawnBtn');
+
+  function runZombieCountdown(n) {
+    if (n === 0) {
+      zombieCountdownEl.textContent = '';
+      deathScreen.classList.add('show');
+      return;
+    }
+    zombieCountdownEl.textContent = n;
+    setTimeout(() => runZombieCountdown(n - 1), 1000);
+  }
+
+  function handleItemPick(e) {
+    const btn = e.currentTarget;
+    const item = btn.dataset.item;
+    [...itemGrid.children].forEach(b => {
+      b.disabled = true;
+      if (b === btn) b.classList.add('picked');
+    });
+    const outcome = ZOMBIE_OUTCOMES[item];
+    zombieMessage.textContent = outcome.text;
+    zombieLabelEl.textContent = outcome.label || '';
+    zombieLabelEl.className = 'outcome-label' + (outcome.label ? ' ' + outcome.cls : '');
+
+    if (outcome.cls === 'danger') {
+      deathSubEl.textContent = outcome.deathSub;
+      runZombieCountdown(3);
+    } else {
+      setTimeout(() => { zombieRetryBtn.classList.remove('hidden'); }, 400);
+    }
+  }
+
+  function resetZombie() {
+    zombieMessage.textContent = '주민을 구할 아이템을 골라보세요.';
+    zombieLabelEl.textContent = '';
+    zombieCountdownEl.textContent = '';
+    zombieRetryBtn.classList.add('hidden');
+    deathScreen.classList.remove('show');
+    [...itemGrid.children].forEach(b => {
+      b.disabled = false;
+      b.classList.remove('picked');
+    });
+  }
+
+  [...itemGrid.children].forEach(b => b.addEventListener('click', handleItemPick));
+  zombieRetryBtn.addEventListener('click', resetZombie);
+  deathRespawnBtn.addEventListener('click', resetZombie);
 
   // ── Firebase 설정 ──
   const firebaseConfig = {
