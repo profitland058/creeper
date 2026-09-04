@@ -538,6 +538,13 @@
     margin-top: 6px;
   }
   .swap-window .countdown { margin: 6px 0; }
+  .swap-choice-btns { display: flex; gap: 10px; margin-top: 6px; }
+  .swap-choice-btns .retry-btn { flex: 1; padding: 12px 4px; font-size: 11px; }
+  .swap-choice-btns .keep-btn {
+    background: #182118;
+    box-shadow: inset -4px -4px 0 #0a0f0a, inset 4px 4px 0 rgba(255,255,255,0.1);
+  }
+  .swap-pick-grid { margin-top: 10px; }
 
   .death-screen.poison {
     background: radial-gradient(ellipse at center, #123a12 0%, #0a1f0a 65%, #020a02 100%);
@@ -653,7 +660,11 @@
     <div class="swap-window hidden" id="swapWindow">
       <div id="swapMobLabel"></div>
       <div class="countdown" id="swapCountdown"></div>
-      <button class="retry-btn" id="swapBtn">다른 카드로 몰래 교체하기</button>
+      <div class="swap-choice-btns" id="swapChoiceBtns">
+        <button class="retry-btn keep-btn" id="swapKeepBtn">현재 카드 유지</button>
+        <button class="retry-btn" id="swapBtn">다른 카드로 바꾸기</button>
+      </div>
+      <div class="card-grid swap-pick-grid hidden" id="swapPickGrid"></div>
     </div>
 
     <div class="battle-result hidden" id="battleResult">
@@ -1114,7 +1125,10 @@
   const swapWindow = document.getElementById('swapWindow');
   const swapMobLabel = document.getElementById('swapMobLabel');
   const swapCountdown = document.getElementById('swapCountdown');
+  const swapChoiceBtns = document.getElementById('swapChoiceBtns');
+  const swapKeepBtn = document.getElementById('swapKeepBtn');
   const swapBtn = document.getElementById('swapBtn');
+  const swapPickGrid = document.getElementById('swapPickGrid');
   const snowCountdownEl = document.getElementById('snowCountdown');
   const inkCountdownEl = document.getElementById('inkCountdown');
   const deathTitleEl = document.getElementById('deathTitle');
@@ -1196,6 +1210,9 @@
     if (swapTimer) { clearInterval(swapTimer); swapTimer = null; }
     if (deathScreenTimer) { clearTimeout(deathScreenTimer); deathScreenTimer = null; }
     swapWindow.classList.add('hidden');
+    swapChoiceBtns.classList.remove('hidden');
+    swapPickGrid.classList.add('hidden');
+    swapPickGrid.innerHTML = '';
     deathScreen.classList.remove('show');
     deathScreen.classList.remove('poison');
     if (battleRoomRef && battleListener) battleRoomRef.off('value', battleListener);
@@ -1241,15 +1258,36 @@
   function startSwapWindow(currentMob) {
     swapWindow.classList.remove('hidden');
     swapMobLabel.textContent = currentMob.name + ' 카드를 뽑았어요! 몰래 바꿀까요?';
+    swapChoiceBtns.classList.remove('hidden');
+    swapPickGrid.classList.add('hidden');
+    swapPickGrid.innerHTML = '';
+
     let remaining = DISRUPT_SECONDS;
     swapCountdown.textContent = remaining;
-    swapBtn.disabled = false;
+
+    swapKeepBtn.onclick = () => {
+      if (swapTimer) { clearInterval(swapTimer); swapTimer = null; }
+      finalizeSwapWindow(currentMob);
+    };
 
     swapBtn.onclick = () => {
-      if (swapTimer) { clearInterval(swapTimer); swapTimer = null; }
-      const pool = MOBS.filter(m => m.name !== currentMob.name);
-      const newMob = pool[Math.floor(Math.random() * pool.length)];
-      finalizeSwapWindow(newMob);
+      // reveal the remaining 9 cards face-down, in a fresh random order,
+      // so you pick blind without knowing what's underneath
+      swapMobLabel.textContent = '어떤 카드로 바꿀까요?';
+      swapChoiceBtns.classList.add('hidden');
+      swapPickGrid.innerHTML = '';
+      const pool = [...MOBS].filter(m => m.name !== currentMob.name).sort(() => Math.random() - 0.5);
+      pool.forEach(mob => {
+        const cardBtn = document.createElement('button');
+        cardBtn.className = 'mob-card';
+        cardBtn.textContent = '?';
+        cardBtn.addEventListener('click', () => {
+          if (swapTimer) { clearInterval(swapTimer); swapTimer = null; }
+          finalizeSwapWindow(mob);
+        });
+        swapPickGrid.appendChild(cardBtn);
+      });
+      swapPickGrid.classList.remove('hidden');
     };
 
     swapTimer = setInterval(() => {
@@ -1266,6 +1304,10 @@
 
   function finalizeSwapWindow(finalMob) {
     swapWindow.classList.add('hidden');
+    swapChoiceBtns.classList.remove('hidden');
+    swapPickGrid.classList.add('hidden');
+    swapPickGrid.innerHTML = '';
+    swapKeepBtn.onclick = null;
     swapBtn.onclick = null;
     if (!db || !roomId) return;
     db.ref('battles/' + roomId).update({
@@ -1383,13 +1425,13 @@
 
   const MOB_PIXEL_DATA = {
     '좀비': ZOMBIE_PIXELS,
-    '철 골렘': IRON_GOLEM_PIXELS,
+    '철 골렘': SKELETON_PIXELS,
     '오징어': SQUID_PIXELS,
     '닭': CHICKEN_MOB_PIXELS,
     '앵무새': PARROT_PIXELS,
     '소': COW_PIXELS,
     '주민': VILLAGER_PIXELS,
-    '스켈레톤': SKELETON_PIXELS,
+    '스켈레톤': IRON_GOLEM_PIXELS,
     '복어': PUFFERFISH_PIXELS,
     '눈사람': SNOWMAN_PIXELS,
   };
@@ -1554,6 +1596,9 @@
     if (swapTimer) { clearInterval(swapTimer); swapTimer = null; }
     if (deathScreenTimer) { clearTimeout(deathScreenTimer); deathScreenTimer = null; }
     swapWindow.classList.add('hidden');
+    swapChoiceBtns.classList.remove('hidden');
+    swapPickGrid.classList.add('hidden');
+    swapPickGrid.innerHTML = '';
     disruptHandledRound = -1;
     deathScreen.classList.remove('show');
     deathScreen.classList.remove('poison');
