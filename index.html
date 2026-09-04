@@ -488,6 +488,7 @@
     position: fixed; inset: 0;
     z-index: 900;
     background: #eef3f8;
+    flex-direction: column;
     align-items: center; justify-content: center;
     animation: snowFlash 0.3s ease;
   }
@@ -507,6 +508,7 @@
     position: fixed; inset: 0;
     z-index: 900;
     background: #0a0a16;
+    flex-direction: column;
     align-items: center; justify-content: center;
     animation: snowFlash 0.3s ease;
   }
@@ -518,6 +520,14 @@
     text-align: center;
     padding: 0 20px;
   }
+
+  .blind-countdown {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 30px;
+    margin-top: 18px;
+  }
+  .snow-overlay .blind-countdown { color: #2b3a4a; }
+  .ink-overlay .blind-countdown { color: #b8b8e0; }
 
   /* secret-swap window after playing a disruption card */
   .swap-window {
@@ -661,10 +671,12 @@
 
 <div class="snow-overlay" id="snowOverlay">
   <div class="snow-text">❄ 눈보라 때문에 앞이 안 보여요! ❄</div>
+  <div class="blind-countdown" id="snowCountdown">10</div>
 </div>
 
 <div class="ink-overlay" id="inkOverlay">
   <div class="ink-text">🦑 먹물 때문에 앞이 안 보여요! 🦑</div>
+  <div class="blind-countdown" id="inkCountdown">10</div>
 </div>
 
 <div class="death-screen" id="deathScreen">
@@ -1103,19 +1115,24 @@
   const swapMobLabel = document.getElementById('swapMobLabel');
   const swapCountdown = document.getElementById('swapCountdown');
   const swapBtn = document.getElementById('swapBtn');
+  const snowCountdownEl = document.getElementById('snowCountdown');
+  const inkCountdownEl = document.getElementById('inkCountdown');
   const deathTitleEl = document.getElementById('deathTitle');
 
   const DISRUPTIVE_MOBS = ['오징어', '눈사람'];
   function isDisruptive(name) { return DISRUPTIVE_MOBS.includes(name); }
+  const DISRUPT_SECONDS = 10;
+  const DEATH_SCREEN_DELAY_MS = 5000;
 
   let roomId = null;
   let mySlot = null;
   let battleRoomRef = null;
   let battleListener = null;
   let lastProcessedRound = -1;
-  let cardsRenderedForRound = false;
+  let renderedForRound = -1;
   let disruptHandledRound = -1;
   let swapTimer = null;
+  let deathScreenTimer = null;
 
   function getOrCreateClientId(roomCode) {
     const key = 'battle_client_' + roomCode;
@@ -1162,8 +1179,9 @@
     roomId = code;
     mySlot = slot;
     lastProcessedRound = -1;
-    cardsRenderedForRound = false;
+    renderedForRound = -1;
     disruptHandledRound = -1;
+    if (deathScreenTimer) { clearTimeout(deathScreenTimer); deathScreenTimer = null; }
     lobbyStatus.textContent = '';
     battleLobby.classList.add('hidden');
     battleRoom.classList.remove('hidden');
@@ -1176,7 +1194,10 @@
 
   function leaveRoom() {
     if (swapTimer) { clearInterval(swapTimer); swapTimer = null; }
+    if (deathScreenTimer) { clearTimeout(deathScreenTimer); deathScreenTimer = null; }
     swapWindow.classList.add('hidden');
+    deathScreen.classList.remove('show');
+    deathScreen.classList.remove('poison');
     if (battleRoomRef && battleListener) battleRoomRef.off('value', battleListener);
     if (db && roomId && mySlot) {
       db.ref('battles/' + roomId + '/' + mySlot + 'Id').set(null);
@@ -1220,7 +1241,7 @@
   function startSwapWindow(currentMob) {
     swapWindow.classList.remove('hidden');
     swapMobLabel.textContent = currentMob.name + ' 카드를 뽑았어요! 몰래 바꿀까요?';
-    let remaining = 5;
+    let remaining = DISRUPT_SECONDS;
     swapCountdown.textContent = remaining;
     swapBtn.disabled = false;
 
@@ -1385,22 +1406,66 @@
   }
 
   function mobCardHTML(pick) {
-    return mobIconHTML(pick.name) + `<div class="mob-name">${pick.name}</div><div class="mob-power">${pick.power}</div>`;
+    return mobIconHTML(pick.name) + `<div class="mob-name">${pick.name}</div>`;
+  }
+
+  function runBlindCountdown(overlayEl, countdownEl, seconds) {
+    overlayEl.classList.add('show');
+    let remaining = seconds;
+    countdownEl.textContent = remaining;
+    const timer = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(timer);
+        overlayEl.classList.remove('show');
+      } else {
+        countdownEl.textContent = remaining;
+      }
+    }, 1000);
   }
 
   function showSnowBlind() {
-    snowOverlay.classList.add('show');
-    setTimeout(() => snowOverlay.classList.remove('show'), 5000);
+    runBlindCountdown(snowOverlay, snowCountdownEl, DISRUPT_SECONDS);
   }
 
   function showInkBlind() {
-    inkOverlay.classList.add('show');
-    setTimeout(() => inkOverlay.classList.remove('show'), 5000);
+    runBlindCountdown(inkOverlay, inkCountdownEl, DISRUPT_SECONDS);
   }
 
   function triggerDisruptionEffect(name) {
     if (name === '눈사람') showSnowBlind();
     else if (name === '오징어') showInkBlind();
+  }
+
+  // true if the last syllable of a Korean word has a trailing consonant (받침)
+  function hasBatchim(word) {
+    const ch = word[word.length - 1];
+    const code = ch.charCodeAt(0);
+    if (code < 0xac00 || code > 0xd7a3) return false;
+    return (code - 0xac00) % 28 !== 0;
+  }
+
+  const DEATH_MESSAGES = {
+    '철 골렘': '골렘의 일격에 사망했습니다.',
+    '오징어': '오징어 먹물에 빠져 사망했습니다.',
+    '스켈레톤': '스켈레톤의 화살에 맞아 사망했습니다.',
+    '소': '소에게 치여 사망했습니다.',
+    '닭': '닭의 부리에 쪼여 사망했습니다.',
+    '주민': '주민의 강력한 주먹에 맞아 사망했습니다.',
+    '복어': '복어의 독에 중독되어 사망했습니다.',
+    '앵무새': '분노한 앵무새에게 물려 사망했습니다.',
+  };
+
+  function deathMessageForWinner(winnerName, myPickName) {
+    if (winnerName === '좀비') {
+      const particle = hasBatchim(myPickName) ? '이' : '가';
+      return `좀비 ${myPickName}${particle} 되었습니다.`;
+    }
+    return DEATH_MESSAGES[winnerName] || (winnerName + '에게 패배하여 목숨을 잃었습니다.');
+  }
+
+  function isGolemVillagerPair(a, b) {
+    return (a === '철 골렘' && b === '주민') || (a === '주민' && b === '철 골렘');
   }
 
   function resolveRound(myPick, oppPick) {
@@ -1411,6 +1476,13 @@
     myCardBox.style.color = MOB_LIGHT_TEXT.includes(myPick.name) ? '#2a2a2a' : '#f2ece0';
     oppCardBox.style.color = MOB_LIGHT_TEXT.includes(oppPick.name) ? '#2a2a2a' : '#f2ece0';
 
+    const isDraw = myPick.name === oppPick.name || isGolemVillagerPair(myPick.name, oppPick.name);
+    if (isDraw) {
+      battleOutcomeLabel.textContent = '무승부';
+      battleOutcomeLabel.className = 'outcome-label neutral';
+      return;
+    }
+
     const won = myPick.power > oppPick.power;
     battleOutcomeLabel.textContent = won ? '승리!' : '패배...';
     battleOutcomeLabel.className = 'outcome-label ' + (won ? 'safe' : 'danger');
@@ -1418,11 +1490,13 @@
     if (!won) {
       const isPoison = oppPick.name === '복어';
       deathTitleEl.textContent = 'You Died!';
-      deathSubEl.textContent = isPoison
-        ? '복어의 독에 중독되어 목숨을 잃었습니다'
-        : (oppPick.name + '에게 패배하여 목숨을 잃었습니다');
+      deathSubEl.textContent = deathMessageForWinner(oppPick.name, myPick.name);
       deathScreen.classList.toggle('poison', isPoison);
-      deathScreen.classList.add('show');
+      if (deathScreenTimer) clearTimeout(deathScreenTimer);
+      deathScreenTimer = setTimeout(() => {
+        deathScreen.classList.add('show');
+        deathScreenTimer = null;
+      }, DEATH_SCREEN_DELAY_MS);
     }
   }
 
@@ -1435,14 +1509,17 @@
     const myLocked = !!data[mySlot + 'Locked'];
     const oppLocked = !!data[oppSlot + 'Locked'];
     const round = data.round || 0;
+    const bothDone = !!(myPick && oppPick && myLocked && oppLocked);
 
-    if (!myPick && !oppPick) {
+    // render a fresh, clickable card grid exactly once per round (unless this
+    // round is already fully resolved, e.g. rejoining after the fact) —
+    // keyed on the round number rather than pick state, so a late-arriving
+    // opponent pick can never leave a stale/disabled grid on screen
+    if (round !== renderedForRound && !bothDone) {
+      renderedForRound = round;
       battleResult.classList.add('hidden');
       cardGrid.classList.remove('hidden');
-      if (!cardsRenderedForRound) {
-        renderMyCards();
-        cardsRenderedForRound = true;
-      }
+      if (!myPick) renderMyCards();
     }
 
     // trigger my own screen blackout the moment the opponent plays a disruption card
@@ -1462,12 +1539,11 @@
       battleStatus.textContent = '';
     }
 
-    if (myPick && oppPick && myLocked && oppLocked) {
+    if (bothDone) {
       cardGrid.classList.add('hidden');
       battleResult.classList.remove('hidden');
       if (round !== lastProcessedRound) {
         lastProcessedRound = round;
-        cardsRenderedForRound = false;
         resolveRound(myPick, oppPick);
       }
     }
@@ -1476,6 +1552,7 @@
   function battleNextRound() {
     if (!db || !roomId) return;
     if (swapTimer) { clearInterval(swapTimer); swapTimer = null; }
+    if (deathScreenTimer) { clearTimeout(deathScreenTimer); deathScreenTimer = null; }
     swapWindow.classList.add('hidden');
     disruptHandledRound = -1;
     deathScreen.classList.remove('show');
