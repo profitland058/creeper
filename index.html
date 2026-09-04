@@ -400,6 +400,139 @@
   }
   .death-btn:hover { background: #4a2828; }
   .death-btn:active { transform: translateY(2px); }
+
+  /* battle lobby */
+  .battle-lobby { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .room-input {
+    width: 100%;
+    font-family: 'VT323', monospace;
+    font-size: 22px;
+    text-align: center;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    background: #10170f;
+    border: 3px solid #050804;
+    color: var(--cream);
+    padding: 10px;
+  }
+  .room-input::placeholder { color: var(--cream-dim); letter-spacing: 1px; text-transform: none; }
+  .lobby-btns { display: flex; gap: 10px; width: 100%; }
+  .lobby-btns .block-btn { flex: 1; padding: 14px 4px; }
+  .lobby-status { font-family: 'VT323', monospace; font-size: 18px; color: var(--cream-dim); min-height: 22px; text-align: center; }
+
+  .hidden { display: none !important; }
+
+  /* battle room */
+  .room-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'VT323', monospace; font-size: 19px; color: var(--cream-dim);
+    margin-bottom: 16px;
+  }
+  .room-bar b { color: var(--cream); letter-spacing: 2px; }
+  .leave-btn {
+    font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--cream-dim);
+    background: #10170f; border: none; padding: 8px 10px; cursor: pointer;
+  }
+  .leave-btn:hover { color: var(--cream); }
+
+  .battle-status {
+    text-align: center; font-family: 'VT323', monospace; font-size: 19px;
+    color: var(--cream-dim); margin-bottom: 16px; min-height: 24px;
+  }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .mob-card {
+    aspect-ratio: 3/4;
+    background: #182118;
+    box-shadow: inset 0 -3px 0 #0a0f0a;
+    border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Press Start 2P', monospace;
+    color: var(--cream-dim);
+    font-size: 16px;
+  }
+  .mob-card:hover:not(:disabled) { filter: brightness(1.2); }
+  .mob-card:disabled { cursor: default; }
+  .mob-card.picked-back { opacity: 0.35; }
+
+  .battle-result { margin-top: 4px; }
+  .vs-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 14px; }
+  .vs-card {
+    flex: 1;
+    max-width: 150px;
+    aspect-ratio: 3/4;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    font-family: 'VT323', monospace;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.4);
+    padding: 8px;
+  }
+  .vs-card .mob-name { font-size: 20px; }
+  .vs-card .mob-power { font-family: 'Press Start 2P', monospace; font-size: 15px; }
+  .vs-label { font-family: 'Press Start 2P', monospace; font-size: 13px; color: var(--tnt); }
+
+  .mob-icon {
+    display: grid;
+    width: 64px;
+    margin: 0 auto 8px;
+  }
+
+  /* snow-blind penalty overlay */
+  .snow-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    z-index: 900;
+    background: #eef3f8;
+    align-items: center; justify-content: center;
+    animation: snowFlash 0.3s ease;
+  }
+  .snow-overlay.show { display: flex; }
+  @keyframes snowFlash { from { opacity: 0; } to { opacity: 1; } }
+  .snow-text {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 16px;
+    color: #2b3a4a;
+    text-align: center;
+    padding: 0 20px;
+  }
+
+  /* ink-blind penalty overlay (squid) */
+  .ink-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    z-index: 900;
+    background: #0a0a16;
+    align-items: center; justify-content: center;
+    animation: snowFlash 0.3s ease;
+  }
+  .ink-overlay.show { display: flex; }
+  .ink-text {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 16px;
+    color: #b8b8e0;
+    text-align: center;
+    padding: 0 20px;
+  }
+
+  /* secret-swap window after playing a disruption card */
+  .swap-window {
+    text-align: center;
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    color: var(--cream);
+    margin-top: 6px;
+  }
+  .swap-window .countdown { margin: 6px 0; }
+
+  .death-screen.poison {
+    background: radial-gradient(ellipse at center, #123a12 0%, #0a1f0a 65%, #020a02 100%);
+  }
+  .death-screen.poison .death-title { color: #7aff4d; text-shadow: 4px 4px 0 #0a2a0a; }
 </style>
 </head>
 <body>
@@ -410,6 +543,7 @@
   <div class="tabs">
     <button class="tab-btn active" data-tab="creeper">크리퍼 게임</button>
     <button class="tab-btn" data-tab="zombie">주민 구하기</button>
+    <button class="tab-btn" data-tab="battle">몹 카드 대결</button>
   </div>
 
   <div class="tab-panel active" id="tab-creeper">
@@ -482,10 +616,59 @@
 
   <button class="retry-btn hidden" id="zombieRetryBtn">다시 선택하기</button>
   </div>
+
+  <div class="tab-panel" id="tab-battle">
+  <h1>몹 카드 대결</h1>
+  <p class="sub">상대와 동시에 카드를 뽑아 공격력을 겨루세요</p>
+
+  <div class="battle-lobby" id="battleLobby">
+    <input type="text" class="room-input" id="roomInput" placeholder="방 코드 입력" maxlength="6">
+    <div class="lobby-btns">
+      <button class="block-btn" id="joinRoomBtn">입장하기</button>
+      <button class="block-btn" id="newRoomBtn">새 방 만들기</button>
+    </div>
+    <div class="lobby-status" id="lobbyStatus"></div>
+  </div>
+
+  <div class="battle-room hidden" id="battleRoom">
+    <div class="room-bar">
+      <span>방 코드: <b id="roomCodeLabel"></b></span>
+      <button class="leave-btn" id="leaveRoomBtn">나가기</button>
+    </div>
+
+    <div class="battle-status" id="battleStatus">상대를 기다리는 중...</div>
+
+    <div class="card-grid" id="cardGrid"></div>
+
+    <div class="swap-window hidden" id="swapWindow">
+      <div id="swapMobLabel"></div>
+      <div class="countdown" id="swapCountdown"></div>
+      <button class="retry-btn" id="swapBtn">다른 카드로 몰래 교체하기</button>
+    </div>
+
+    <div class="battle-result hidden" id="battleResult">
+      <div class="vs-row">
+        <div class="vs-card" id="myCardBox"></div>
+        <div class="vs-label">VS</div>
+        <div class="vs-card" id="oppCardBox"></div>
+      </div>
+      <div class="outcome-label" id="battleOutcomeLabel"></div>
+      <button class="retry-btn" id="nextRoundBtn">다음 라운드</button>
+    </div>
+  </div>
+  </div>
+</div>
+
+<div class="snow-overlay" id="snowOverlay">
+  <div class="snow-text">❄ 눈보라 때문에 앞이 안 보여요! ❄</div>
+</div>
+
+<div class="ink-overlay" id="inkOverlay">
+  <div class="ink-text">🦑 먹물 때문에 앞이 안 보여요! 🦑</div>
 </div>
 
 <div class="death-screen" id="deathScreen">
-  <div class="death-title">You Died!</div>
+  <div class="death-title" id="deathTitle">You Died!</div>
   <div class="death-sub" id="deathSub">좀비에게 목숨을 잃었습니다</div>
   <button class="death-btn" id="deathRespawnBtn">다시 시작하기</button>
 </div>
@@ -698,7 +881,7 @@
 
   [...itemGrid.children].forEach(b => b.addEventListener('click', handleItemPick));
   zombieRetryBtn.addEventListener('click', resetZombie);
-  deathRespawnBtn.addEventListener('click', resetZombie);
+  deathRespawnBtn.addEventListener('click', handleDeathRespawn);
 
   // ── Firebase 설정 ──
   const firebaseConfig = {
@@ -878,6 +1061,453 @@
 
   [...choicesEl.children].forEach(b => b.addEventListener('click', handlePick));
   retryBtn.addEventListener('click', resetGame);
+
+  // ── 몹 카드 대결 (2인용, Firebase 실시간 동기화) ──
+  const MOBS = [
+    { name: '좀비', power: 60 },
+    { name: '철 골렘', power: 100 },
+    { name: '오징어', power: 15 },
+    { name: '닭', power: 8 },
+    { name: '앵무새', power: 18 },
+    { name: '소', power: 40 },
+    { name: '주민', power: 35 },
+    { name: '스켈레톤', power: 70 },
+    { name: '복어', power: 30 },
+    { name: '눈사람', power: 5 },
+  ];
+  const MOB_COLORS = {
+    '좀비': '#3d6b30', '철 골렘': '#9aa0a6', '오징어': '#5a4a8a', '닭': '#e8dcc8',
+    '앵무새': '#c0392b', '소': '#8a5a34', '주민': '#c99274', '스켈레톤': '#d8d0c0',
+    '복어': '#e0a83a', '눈사람': '#dfefff',
+  };
+  const MOB_LIGHT_TEXT = ['닭', '스켈레톤', '눈사람'];
+
+  const battleLobby = document.getElementById('battleLobby');
+  const roomInput = document.getElementById('roomInput');
+  const joinRoomBtn = document.getElementById('joinRoomBtn');
+  const newRoomBtn = document.getElementById('newRoomBtn');
+  const lobbyStatus = document.getElementById('lobbyStatus');
+  const battleRoom = document.getElementById('battleRoom');
+  const roomCodeLabel = document.getElementById('roomCodeLabel');
+  const leaveRoomBtn = document.getElementById('leaveRoomBtn');
+  const battleStatus = document.getElementById('battleStatus');
+  const cardGrid = document.getElementById('cardGrid');
+  const battleResult = document.getElementById('battleResult');
+  const myCardBox = document.getElementById('myCardBox');
+  const oppCardBox = document.getElementById('oppCardBox');
+  const battleOutcomeLabel = document.getElementById('battleOutcomeLabel');
+  const nextRoundBtn = document.getElementById('nextRoundBtn');
+  const snowOverlay = document.getElementById('snowOverlay');
+  const inkOverlay = document.getElementById('inkOverlay');
+  const swapWindow = document.getElementById('swapWindow');
+  const swapMobLabel = document.getElementById('swapMobLabel');
+  const swapCountdown = document.getElementById('swapCountdown');
+  const swapBtn = document.getElementById('swapBtn');
+  const deathTitleEl = document.getElementById('deathTitle');
+
+  const DISRUPTIVE_MOBS = ['오징어', '눈사람'];
+  function isDisruptive(name) { return DISRUPTIVE_MOBS.includes(name); }
+
+  let roomId = null;
+  let mySlot = null;
+  let battleRoomRef = null;
+  let battleListener = null;
+  let lastProcessedRound = -1;
+  let cardsRenderedForRound = false;
+  let disruptHandledRound = -1;
+  let swapTimer = null;
+
+  function getOrCreateClientId(roomCode) {
+    const key = 'battle_client_' + roomCode;
+    let id = sessionStorage.getItem(key);
+    if (!id) {
+      id = 'p' + Math.random().toString(36).slice(2, 10);
+      sessionStorage.setItem(key, id);
+    }
+    return id;
+  }
+
+  function randomRoomCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < 5; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+
+  async function joinRoom(code) {
+    if (!db) { lobbyStatus.textContent = 'Firebase 설정이 필요합니다.'; return; }
+    code = code.trim().toUpperCase();
+    if (!code) { lobbyStatus.textContent = '방 코드를 입력해주세요.'; return; }
+    lobbyStatus.textContent = '입장하는 중...';
+
+    const myId = getOrCreateClientId(code);
+    const roomRef = db.ref('battles/' + code);
+    let slot = null;
+    try {
+      let res = await roomRef.child('player1Id').transaction(cur => (cur === null || cur === myId) ? myId : cur);
+      if (res.committed && res.snapshot.val() === myId) slot = 'player1';
+      if (!slot) {
+        res = await roomRef.child('player2Id').transaction(cur => (cur === null || cur === myId) ? myId : cur);
+        if (res.committed && res.snapshot.val() === myId) slot = 'player2';
+      }
+    } catch (e) {
+      lobbyStatus.textContent = '입장에 실패했습니다. 잠시 후 다시 시도해주세요.';
+      return;
+    }
+    if (!slot) {
+      lobbyStatus.textContent = '방이 가득 찼습니다. 다른 코드를 사용해주세요.';
+      return;
+    }
+
+    roomId = code;
+    mySlot = slot;
+    lastProcessedRound = -1;
+    cardsRenderedForRound = false;
+    disruptHandledRound = -1;
+    lobbyStatus.textContent = '';
+    battleLobby.classList.add('hidden');
+    battleRoom.classList.remove('hidden');
+    roomCodeLabel.textContent = roomId;
+
+    battleRoomRef = roomRef;
+    battleListener = (snap) => { syncBattleUI(snap.val() || {}); };
+    roomRef.on('value', battleListener);
+  }
+
+  function leaveRoom() {
+    if (swapTimer) { clearInterval(swapTimer); swapTimer = null; }
+    swapWindow.classList.add('hidden');
+    if (battleRoomRef && battleListener) battleRoomRef.off('value', battleListener);
+    if (db && roomId && mySlot) {
+      db.ref('battles/' + roomId + '/' + mySlot + 'Id').set(null);
+      db.ref('battles/' + roomId + '/' + mySlot + 'Pick').set(null);
+      db.ref('battles/' + roomId + '/' + mySlot + 'Locked').set(null);
+    }
+    roomId = null; mySlot = null; battleRoomRef = null; battleListener = null;
+    battleRoom.classList.add('hidden');
+    battleLobby.classList.remove('hidden');
+    roomInput.value = '';
+    lobbyStatus.textContent = '';
+  }
+
+  function renderMyCards() {
+    cardGrid.innerHTML = '';
+    const shuffled = [...MOBS].sort(() => Math.random() - 0.5);
+    shuffled.forEach(mob => {
+      const btn = document.createElement('button');
+      btn.className = 'mob-card';
+      btn.textContent = '?';
+      btn.addEventListener('click', () => pickCard(mob));
+      cardGrid.appendChild(btn);
+    });
+  }
+
+  function pickCard(mob) {
+    [...cardGrid.children].forEach(b => { b.disabled = true; b.classList.add('picked-back'); });
+    commitPick(mob, true);
+  }
+
+  function commitPick(mob, allowSwap) {
+    if (!db || !roomId) return;
+    const disruptive = isDisruptive(mob.name);
+    db.ref('battles/' + roomId).update({
+      [mySlot + 'Pick']: { name: mob.name, power: mob.power },
+      [mySlot + 'Locked']: !(disruptive && allowSwap),
+    });
+    if (disruptive && allowSwap) startSwapWindow(mob);
+  }
+
+  function startSwapWindow(currentMob) {
+    swapWindow.classList.remove('hidden');
+    swapMobLabel.textContent = currentMob.name + ' 카드를 뽑았어요! 몰래 바꿀까요?';
+    let remaining = 5;
+    swapCountdown.textContent = remaining;
+    swapBtn.disabled = false;
+
+    swapBtn.onclick = () => {
+      if (swapTimer) { clearInterval(swapTimer); swapTimer = null; }
+      const pool = MOBS.filter(m => m.name !== currentMob.name);
+      const newMob = pool[Math.floor(Math.random() * pool.length)];
+      finalizeSwapWindow(newMob);
+    };
+
+    swapTimer = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(swapTimer);
+        swapTimer = null;
+        finalizeSwapWindow(currentMob);
+      } else {
+        swapCountdown.textContent = remaining;
+      }
+    }, 1000);
+  }
+
+  function finalizeSwapWindow(finalMob) {
+    swapWindow.classList.add('hidden');
+    swapBtn.onclick = null;
+    if (!db || !roomId) return;
+    db.ref('battles/' + roomId).update({
+      [mySlot + 'Pick']: { name: finalMob.name, power: finalMob.power },
+      [mySlot + 'Locked']: true,
+    });
+  }
+
+  // hand-sampled pixel art for each mob card (8x8 unless noted)
+  const SNOWMAN_PIXELS = [
+    ['#c7baac', '#cec0b0', '#c4b9a9', '#c7bfab', '#cdc1ac', '#cdc1ab', '#cdc1ad', '#cdc2b0'],
+    ['#b0a293', '#a59788', '#272221', '#a99e8b', '#bcad99', '#b7a995', '#b2a492', '#b9ab9c'],
+    ['#ada090', '#a79c8c', '#91897f', '#aaa08d', '#b7a996', '#a59887', '#282221', '#a3998d'],
+    ['#a89e8f', '#a49a8b', '#a79b8a', '#ada08d', '#afa290', '#a99c8b', '#9c8f84', '#aea094'],
+    ['#9e9589', '#31302e', '#817b70', '#a79c8a', '#a99d8c', '#9d9283', '#9d9285', '#b0a393'],
+    ['#9f9489', '#7d766f', '#1e1c1d', '#8a8378', '#817a71', '#1b1819', '#1a1818', '#a69a8f'],
+    ['#9f9687', '#988e80', '#817b71', '#272524', '#201e1d', '#79736e', '#928a7c', '#aca394'],
+    ['#9b9283', '#978e7d', '#928a7b', '#8b8479', '#8a847a', '#948c7e', '#a09885', '#bab1a1'],
+  ];
+
+  const SQUID_PIXELS = [
+    ['#122636', '#122737', '#122737', '#122737', '#122737', '#122737', '#122737', '#122737', '#122737', '#122737', '#122737', '#122737', '#122737', '#122737', '#122737', '#122737', '#162939'],
+    ['#122738', '#1c3446', '#213a4b', '#243d4e', '#263f50', '#2d4658', '#334d60', '#334d60', '#334d60', '#334d60', '#334d60', '#263f51', '#213a4b', '#1f3849', '#1f384a', '#193142', '#122637'],
+    ['#122737', '#1e3748', '#385163', '#5f778a', '#6f8699', '#637b8e', '#546d81', '#546d81', '#546d81', '#546d81', '#546d81', '#476074', '#3e576b', '#344e60', '#243e4f', '#1b3344', '#122637'],
+    ['#122738', '#1e3748', '#324b5d', '#4e6779', '#5e7689', '#5a7286', '#546d81', '#546d81', '#546d81', '#546d81', '#546d81', '#546d81', '#546d81', '#546d81', '#344e61', '#223a4d', '#112636'],
+    ['#122738', '#21394b', '#31495b', '#475c6d', '#6b8090', '#61798b', '#546d81', '#546d81', '#546d81', '#546d81', '#546d81', '#687e8f', '#64798a', '#4a5f70', '#3a5367', '#273f52', '#122637'],
+    ['#122737', '#2f485b', '#4f606c', '#797979', '#f3f3f3', '#acb8c1', '#546d81', '#546d81', '#546d81', '#546d81', '#546d81', '#d4dadf', '#d7d7d8', '#797979', '#3f5768', '#273f52', '#122637'],
+    ['#122738', '#2f485b', '#556c7d', '#8a9ba9', '#8a9ba9', '#708595', '#546d81', '#546d81', '#546d81', '#546d81', '#546d81', '#7d909f', '#8a9ba9', '#8a9ba9', '#415b6e', '#273f52', '#112636'],
+    ['#122738', '#2f485b', '#425c6f', '#546d81', '#546d81', '#546d81', '#546d81', '#546d81', '#546d81', '#546d81', '#546d81', '#698093', '#677f92', '#546d81', '#3b5669', '#273f52', '#122637'],
+    ['#122737', '#273f52', '#365063', '#466073', '#536c80', '#546d81', '#546d81', '#546d81', '#546d81', '#566f83', '#627a8d', '#627a8d', '#5a7386', '#466073', '#304a5d', '#21394b', '#112636'],
+    ['#122738', '#1e3748', '#2a4456', '#375164', '#3e586b', '#496276', '#536c80', '#536c80', '#536c80', '#546d81', '#5a7386', '#465f73', '#3c576a', '#365164', '#243e51', '#1b3344', '#122637'],
+    ['#122737', '#1e3749', '#223c4d', '#223c4e', '#304a5d', '#314c5f', '#324c5f', '#324c5f', '#324c5f', '#324c5f', '#324c5f', '#314c5f', '#2d475a', '#223c4e', '#223c4d', '#1b3344', '#122637'],
+    ['#122738', '#1e3748', '#223c4d', '#223c4d', '#223c4d', '#223c4d', '#223c4d', '#223c4d', '#223c4d', '#223c4d', '#223c4d', '#223c4d', '#223c4d', '#223c4d', '#223c4d', '#1b3344', '#112636'],
+  ];
+
+  const IRON_GOLEM_PIXELS = [
+    ['#a1a1a1', '#9b9b9b', '#a3a3a3', '#919191', '#898989', '#909090', '#9b9b9b', '#989898'],
+    ['#9b9b9b', '#9b9b9b', '#9b9b9b', '#aaaaaa', '#c1c1c1', '#bebebe', '#9b9b9b', '#919191'],
+    ['#9c9c9c', '#c6c6c6', '#c9c9c9', '#d7d7d7', '#cfcfcf', '#cfcfcf', '#b9b9b9', '#a9a9a9'],
+    ['#bbbbbb', '#c4c4c4', '#bbbbbb', '#c1c1c1', '#afafaf', '#cacaca', '#aaaaaa', '#aaaaaa'],
+    ['#c2c2c2', '#4b4b4b', '#4d4d4d', '#c4c4c4', '#c8c8c8', '#4b4b4b', '#4d4d4d', '#bababa'],
+    ['#a7a7a7', '#c1c1c1', '#c8c8c8', '#828282', '#838383', '#c9c9c9', '#aaaaaa', '#8f8f8f'],
+    ['#9d9d9d', '#4d4d4d', '#4e4e4e', '#4b4b4b', '#4b4b4b', '#4e4e4e', '#4e4e4e', '#919191'],
+    ['#838383', '#7e7e7e', '#848484', '#848484', '#8f8f8f', '#848484', '#929292', '#888888'],
+  ];
+
+  const SKELETON_PIXELS = [
+    ['#f6f5f5', '#cec8c6', '#cfc9c7', '#cfc9c7', '#cec7c6', '#cdc7c3', '#cdc5c1', '#f6f4f4'],
+    ['#f6f4f2', '#cdc2b9', '#cec5bc', '#d0c6be', '#d0c5be', '#d0c2ba', '#cdc0b6', '#f6f3f2'],
+    ['#f7f2ef', '#cdb6a4', '#ccb3a2', '#ceb5a5', '#ceb6a4', '#cdb4a3', '#cbb3a1', '#f5f1ee'],
+    ['#e4e0dd', '#695345', '#685143', '#695244', '#695244', '#685143', '#695244', '#e4e0dd'],
+    ['#faf7f5', '#907a77', '#0f0205', '#a99a8f', '#968070', '#100205', '#a2867e', '#f8f3f0'],
+    ['#f9f5f2', '#b38581', '#4f2729', '#90827b', '#83756d', '#502729', '#bd928b', '#f8f3f0'],
+    ['#f9f5f2', '#c9b4a5', '#b2998a', '#a08f86', '#8c786e', '#a38773', '#c8ae9d', '#f8f3f0'],
+    ['#f8f3f0', '#dac4b4', '#dcc8b9', '#96877d', '#948178', '#d9c5b5', '#dbc7b8', '#f9f5f2'],
+  ];
+
+  const COW_PIXELS = [
+    ['#3e3123', '#423525', '#3e3123', '#b3b3b2', '#b2b2b2', '#818181', '#808080', '#362c22'],
+    ['#443728', '#443728', '#433627', '#b7b6b7', '#b7b7b7', '#b0afae', '#362c22', '#45382a'],
+    ['#c8c8c8', '#c8c7c7', '#423526', '#b3b2b3', '#b2b1b0', '#443729', '#cac9c9', '#c8c8c8'],
+    ['#050504', '#f8f8f7', '#3e3124', '#a09f9e', '#3f3124', '#423427', '#f9f9f8', '#080807'],
+    ['#3e3023', '#3f3124', '#403225', '#403225', '#403225', '#403225', '#3f3124', '#403226'],
+    ['#3f3124', '#392f24', '#d9d9d8', '#dadad9', '#dadad9', '#d6d6d4', '#362c22', '#413325'],
+    ['#3f3124', '#dad9d8', '#050505', '#606060', '#5f5f5f', '#090909', '#dbdada', '#362c22'],
+    ['#413326', '#c3c3c2', '#616161', '#4b4b4b', '#4b4b4b', '#646464', '#dbdada', '#423529'],
+  ];
+
+  const PUFFERFISH_PIXELS = [
+    [null, null, null, null, null, null, null, '#fba70c', null, null, null, null, null, null],
+    [null, null, null, null, '#915b15', '#ef9f0e', '#b07612', '#d99816', '#af7012', '#e2950e', '#a56d17', '#84a4ab', '#7ea8bd', '#7ea8bd'],
+    [null, null, '#fba70c', '#ca8410', '#ad6f12', '#d79813', '#fac30a', '#fcbb0a', '#e29711', '#a86e16', '#a87d31', '#909e90', '#6fa4bc', '#6aa3bc'],
+    [null, null, '#c68110', '#be7c13', '#d38e14', '#f7b00c', '#fdb80a', '#e89d13', '#bb841b', '#99721e', '#a19a63', '#71a5bc', '#5ba0bb', '#429bba'],
+    [null, '#d8951a', '#b87b17', '#7b561a', '#89681f', '#e39a15', '#d79215', '#c7891a', '#af7b1c', '#a7781a', '#c4972f', '#6b9189', '#908259', '#bd821c'],
+    ['#7ea8bd', '#869996', '#ae7317', '#b07b1b', '#b8811b', '#c98b1a', '#ddb36a', '#e0b872', '#ce8e1a', '#c1831c', '#c07f21', '#b08f48', '#9e722d', '#ae751a'],
+    ['#4c9dba', '#79a5b9', '#8e927f', '#bc7f20', '#c0841b', '#ddb268', '#595840', '#4b4c35', '#d09f49', '#c38c3a', '#e2bd7b', '#f5daaa', '#a27638', '#84500e'],
+    ['#429bba', '#3f97b6', '#637e71', '#c1862b', '#d09a44', '#daa344', '#daad5b', '#deb66d', '#eed09c', '#f1d4a2', '#f1d4a1', '#d3ab67', '#a17026', '#96651d'],
+    [null, '#b67826', '#986018', '#af8241', '#f1d5a2', '#fce5bc', '#f4d9aa', '#f6dcaf', '#f3d8a8', '#efd19c', '#e6c383', '#af8445', '#b48435', '#d2a44d'],
+    [null, '#b67826', '#a56a1e', '#9b6a21', '#d5b277', '#fae2b7', '#eac98d', '#f5daab', '#f5daab', '#f0d29e', '#cba25c', '#aa7a2d', '#aa7a2d', null],
+    [null, null, null, '#bf985d', '#b1864a', '#d0a863', '#e3bf7e', '#f0d3a0', '#d2a961', '#a67a3b', '#97651e', '#b18132', '#d2a44d', null],
+    [null, null, null, '#debd85', '#a87d3f', '#8f5d17', '#946323', '#946424', '#996820', '#bf903e', '#83500e', null, null, null],
+  ];
+
+  const PARROT_PIXELS = [
+    [null, null, null, null, '#790f0f', '#895050', '#650a0a', '#b29999', null, null, null, null],
+    [null, null, null, '#863635', '#760606', '#6d1a19', '#630505', null, null, null, null, null],
+    [null, null, null, '#7d1515', '#780a0a', '#6c1a1a', '#660d0d', null, null, null, null, null],
+    [null, null, '#7b1010', '#7d1413', '#670c0c', '#650909', null, null, null, null, null, null],
+    [null, null, '#770a0a', '#6f0505', '#ab0d0d', '#db2222', null, null, null, null, null, null],
+    ['#ea1a1a', '#e30707', '#a00101', '#b70101', '#d70101', '#a20202', '#c4adad', null, null, null, null, null],
+    ['#bf0101', '#dd0000', '#d40000', '#9a0000', '#710000', '#720101', '#c2acac', null, null, null, null, null],
+    ['#880606', '#a00000', '#720202', '#6e2520', '#160a09', '#6f0000', '#c2acac', null, null, null, null, null],
+    ['#0d0d0d', '#120808', '#100808', '#5a4239', '#63483e', '#910303', '#ce0909', '#981414', null, null, null, null],
+    ['#151313', '#1c0909', '#3a0a0a', '#81211d', '#8b2520', '#bb0000', '#b80101', '#822403', '#897f0e', null, null, null],
+    ['#d33535', '#8f0606', '#b90000', '#da0101', '#bc0101', '#b90101', '#880101', '#835300', '#877c03', '#385b64', null, null],
+    [null, '#781717', '#6e0101', '#7f0000', '#9b0000', '#a80000', '#800101', '#833601', '#636c26', '#023d84', '#0e398c', null],
+    [null, null, '#720808', '#6d0000', '#740000', '#780000', '#800101', '#844a02', '#807806', '#093c7d', '#113c8f', null],
+    [null, null, '#7c2424', '#6f0303', '#6d0000', '#6f0000', '#740500', '#844502', '#485f3e', '#2e565c', '#1d5e97', '#0944ab'],
+    [null, null, null, '#730e0e', '#6e0101', '#6d0000', '#750901', '#5a491d', '#08437c', '#666c23', '#063b78', '#06307f'],
+    [null, null, null, null, '#7e4b42', '#742722', '#730303', '#7a2e29', '#18477e', null, '#a3adc7', '#314d93'],
+    [null, null, null, '#5f524c', '#4f3f37', '#6a5449', '#7d5248', '#7e6456', null, null, null, null],
+    [null, null, null, null, '#5f4e4a', '#62544e', '#4e3e37', '#665146', null, null, null, null],
+  ];
+
+  const CHICKEN_MOB_PIXELS = [
+    ['#303030', '#464646', '#464646', '#464646', '#464646', '#464646', '#464646', '#434343'],
+    ['#232323', null, null, null, null, null, null, '#474748'],
+    ['#232323', null, '#080808', '#484848', null, '#070606', '#e7e7dd', '#464744'],
+    ['#232323', null, '#e4ba34', '#f1c435', '#f2c536', '#e4b932', '#fdfaca', '#464744'],
+    ['#232323', null, '#ba8b15', '#b8850a', '#b8840a', '#b88810', '#fdf8cb', '#464744'],
+    ['#232323', null, '#fefbdb', '#b30404', '#b40102', '#cc8980', null, '#474748'],
+    ['#232324', null, null, '#b30406', '#b30203', '#b45254', null, '#474747'],
+    ['#232221', '#242322', '#242424', '#303030', '#242424', '#272626', '#242321', '#373735'],
+  ];
+
+  const MOB_PIXEL_DATA = {
+    '좀비': ZOMBIE_PIXELS,
+    '철 골렘': IRON_GOLEM_PIXELS,
+    '오징어': SQUID_PIXELS,
+    '닭': CHICKEN_MOB_PIXELS,
+    '앵무새': PARROT_PIXELS,
+    '소': COW_PIXELS,
+    '주민': VILLAGER_PIXELS,
+    '스켈레톤': SKELETON_PIXELS,
+    '복어': PUFFERFISH_PIXELS,
+    '눈사람': SNOWMAN_PIXELS,
+  };
+
+  function mobIconHTML(name) {
+    const matrix = MOB_PIXEL_DATA[name];
+    if (!matrix) return '';
+    const rows = matrix.length, cols = matrix[0].length;
+    let cells = '';
+    matrix.forEach(row => {
+      row.forEach(c => { cells += `<div style="background:${c || 'transparent'}"></div>`; });
+    });
+    return `<div class="mob-icon" style="grid-template-columns:repeat(${cols},1fr);grid-template-rows:repeat(${rows},1fr);aspect-ratio:${cols}/${rows};">${cells}</div>`;
+  }
+
+  function mobCardHTML(pick) {
+    return mobIconHTML(pick.name) + `<div class="mob-name">${pick.name}</div><div class="mob-power">${pick.power}</div>`;
+  }
+
+  function showSnowBlind() {
+    snowOverlay.classList.add('show');
+    setTimeout(() => snowOverlay.classList.remove('show'), 5000);
+  }
+
+  function showInkBlind() {
+    inkOverlay.classList.add('show');
+    setTimeout(() => inkOverlay.classList.remove('show'), 5000);
+  }
+
+  function triggerDisruptionEffect(name) {
+    if (name === '눈사람') showSnowBlind();
+    else if (name === '오징어') showInkBlind();
+  }
+
+  function resolveRound(myPick, oppPick) {
+    myCardBox.innerHTML = mobCardHTML(myPick);
+    oppCardBox.innerHTML = mobCardHTML(oppPick);
+    myCardBox.style.background = MOB_COLORS[myPick.name] || '#8a5a34';
+    oppCardBox.style.background = MOB_COLORS[oppPick.name] || '#8a5a34';
+    myCardBox.style.color = MOB_LIGHT_TEXT.includes(myPick.name) ? '#2a2a2a' : '#f2ece0';
+    oppCardBox.style.color = MOB_LIGHT_TEXT.includes(oppPick.name) ? '#2a2a2a' : '#f2ece0';
+
+    const won = myPick.power > oppPick.power;
+    battleOutcomeLabel.textContent = won ? '승리!' : '패배...';
+    battleOutcomeLabel.className = 'outcome-label ' + (won ? 'safe' : 'danger');
+
+    if (!won) {
+      const isPoison = oppPick.name === '복어';
+      deathTitleEl.textContent = 'You Died!';
+      deathSubEl.textContent = isPoison
+        ? '복어의 독에 중독되어 목숨을 잃었습니다'
+        : (oppPick.name + '에게 패배하여 목숨을 잃었습니다');
+      deathScreen.classList.toggle('poison', isPoison);
+      deathScreen.classList.add('show');
+    }
+  }
+
+  function syncBattleUI(data) {
+    if (!mySlot) return;
+    const oppSlot = mySlot === 'player1' ? 'player2' : 'player1';
+    const oppPresent = !!data[oppSlot + 'Id'];
+    const myPick = data[mySlot + 'Pick'];
+    const oppPick = data[oppSlot + 'Pick'];
+    const myLocked = !!data[mySlot + 'Locked'];
+    const oppLocked = !!data[oppSlot + 'Locked'];
+    const round = data.round || 0;
+
+    if (!myPick && !oppPick) {
+      battleResult.classList.add('hidden');
+      cardGrid.classList.remove('hidden');
+      if (!cardsRenderedForRound) {
+        renderMyCards();
+        cardsRenderedForRound = true;
+      }
+    }
+
+    // trigger my own screen blackout the moment the opponent plays a disruption card
+    // (even before they've locked in / possibly swapped it)
+    if (oppPick && isDisruptive(oppPick.name) && disruptHandledRound !== round) {
+      disruptHandledRound = round;
+      triggerDisruptionEffect(oppPick.name);
+    }
+
+    if (!oppPresent) {
+      battleStatus.textContent = '상대를 기다리는 중... (방 코드를 공유하세요)';
+    } else if (!myPick) {
+      battleStatus.textContent = '카드를 한 장 골라주세요';
+    } else if (!oppPick || !oppLocked) {
+      battleStatus.textContent = '상대의 선택을 기다리는 중...';
+    } else {
+      battleStatus.textContent = '';
+    }
+
+    if (myPick && oppPick && myLocked && oppLocked) {
+      cardGrid.classList.add('hidden');
+      battleResult.classList.remove('hidden');
+      if (round !== lastProcessedRound) {
+        lastProcessedRound = round;
+        cardsRenderedForRound = false;
+        resolveRound(myPick, oppPick);
+      }
+    }
+  }
+
+  function battleNextRound() {
+    if (!db || !roomId) return;
+    if (swapTimer) { clearInterval(swapTimer); swapTimer = null; }
+    swapWindow.classList.add('hidden');
+    disruptHandledRound = -1;
+    deathScreen.classList.remove('show');
+    deathScreen.classList.remove('poison');
+    db.ref('battles/' + roomId).update({
+      round: firebase.database.ServerValue.increment(1),
+      player1Pick: null,
+      player2Pick: null,
+      player1Locked: null,
+      player2Locked: null,
+    });
+  }
+
+  function handleDeathRespawn() {
+    deathScreen.classList.remove('show');
+    deathScreen.classList.remove('poison');
+    if (document.getElementById('tab-battle').classList.contains('active')) {
+      battleNextRound();
+    } else {
+      resetZombie();
+    }
+  }
+
+  joinRoomBtn.addEventListener('click', () => joinRoom(roomInput.value));
+  newRoomBtn.addEventListener('click', () => {
+    const code = randomRoomCode();
+    roomInput.value = code;
+    joinRoom(code);
+  });
+  roomInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') joinRoom(roomInput.value); });
+  leaveRoomBtn.addEventListener('click', leaveRoom);
+  nextRoundBtn.addEventListener('click', battleNextRound);
 </script>
 
 </body>
