@@ -550,8 +550,14 @@
     background: radial-gradient(ellipse at center, #123a12 0%, #0a1f0a 65%, #020a02 100%);
   }
   .death-screen.poison .death-title { color: #7aff4d; text-shadow: 4px 4px 0 #0a2a0a; }
+
+  .win-screen {
+    background: radial-gradient(ellipse at center, #123320 0%, #071a10 65%, #020a06 100%);
+  }
+  .win-screen .win-title { color: #4ade80; text-shadow: 4px 4px 0 #06210f; }
 </style>
 </head>
+
 <body>
 
 <div class="panel">
@@ -674,7 +680,8 @@
         <div class="vs-card" id="oppCardBox"></div>
       </div>
       <div class="outcome-label" id="battleOutcomeLabel"></div>
-      <button class="retry-btn" id="nextRoundBtn">다음 라운드</button>
+      <div class="countdown" id="battleResultCountdown"></div>
+      <button class="retry-btn hidden" id="nextRoundBtn">다음 라운드</button>
     </div>
   </div>
   </div>
@@ -694,6 +701,11 @@
   <div class="death-title" id="deathTitle">You Died!</div>
   <div class="death-sub" id="deathSub">좀비에게 목숨을 잃었습니다</div>
   <button class="death-btn" id="deathRespawnBtn">다시 시작하기</button>
+</div>
+
+<div class="death-screen win-screen" id="winScreen">
+  <div class="death-title win-title">You Win!</div>
+  <button class="death-btn" id="winNextBtn">다음 라운드</button>
 </div>
 
 <script>
@@ -1132,11 +1144,14 @@
   const snowCountdownEl = document.getElementById('snowCountdown');
   const inkCountdownEl = document.getElementById('inkCountdown');
   const deathTitleEl = document.getElementById('deathTitle');
+  const winScreen = document.getElementById('winScreen');
+  const winNextBtn = document.getElementById('winNextBtn');
+  const battleResultCountdownEl = document.getElementById('battleResultCountdown');
 
   const DISRUPTIVE_MOBS = ['오징어', '눈사람'];
   function isDisruptive(name) { return DISRUPTIVE_MOBS.includes(name); }
   const DISRUPT_SECONDS = 10;
-  const DEATH_SCREEN_DELAY_MS = 5000;
+  const RESULT_REVEAL_SECONDS = 5;
 
   let roomId = null;
   let mySlot = null;
@@ -1144,9 +1159,10 @@
   let battleListener = null;
   let lastProcessedRound = -1;
   let renderedForRound = -1;
+  let activeRound = -1;
   let disruptHandledRound = -1;
   let swapTimer = null;
-  let deathScreenTimer = null;
+  let resultRevealTimer = null;
 
   function getOrCreateClientId(roomCode) {
     const key = 'battle_client_' + roomCode;
@@ -1194,8 +1210,9 @@
     mySlot = slot;
     lastProcessedRound = -1;
     renderedForRound = -1;
+    activeRound = -1;
     disruptHandledRound = -1;
-    if (deathScreenTimer) { clearTimeout(deathScreenTimer); deathScreenTimer = null; }
+    if (resultRevealTimer) { clearInterval(resultRevealTimer); resultRevealTimer = null; }
     lobbyStatus.textContent = '';
     battleLobby.classList.add('hidden');
     battleRoom.classList.remove('hidden');
@@ -1208,13 +1225,14 @@
 
   function leaveRoom() {
     if (swapTimer) { clearInterval(swapTimer); swapTimer = null; }
-    if (deathScreenTimer) { clearTimeout(deathScreenTimer); deathScreenTimer = null; }
+    if (resultRevealTimer) { clearInterval(resultRevealTimer); resultRevealTimer = null; }
     swapWindow.classList.add('hidden');
     swapChoiceBtns.classList.remove('hidden');
     swapPickGrid.classList.add('hidden');
     swapPickGrid.innerHTML = '';
     deathScreen.classList.remove('show');
     deathScreen.classList.remove('poison');
+    winScreen.classList.remove('show');
     if (battleRoomRef && battleListener) battleRoomRef.off('value', battleListener);
     if (db && roomId && mySlot) {
       db.ref('battles/' + roomId + '/' + mySlot + 'Id').set(null);
@@ -1517,29 +1535,46 @@
     oppCardBox.style.background = MOB_COLORS[oppPick.name] || '#8a5a34';
     myCardBox.style.color = MOB_LIGHT_TEXT.includes(myPick.name) ? '#2a2a2a' : '#f2ece0';
     oppCardBox.style.color = MOB_LIGHT_TEXT.includes(oppPick.name) ? '#2a2a2a' : '#f2ece0';
+    battleResultCountdownEl.textContent = '';
 
     const isDraw = myPick.name === oppPick.name || isGolemVillagerPair(myPick.name, oppPick.name);
     if (isDraw) {
       battleOutcomeLabel.textContent = '무승부';
       battleOutcomeLabel.className = 'outcome-label neutral';
+      nextRoundBtn.classList.remove('hidden');
       return;
     }
 
     const won = myPick.power > oppPick.power;
     battleOutcomeLabel.textContent = won ? '승리!' : '패배...';
     battleOutcomeLabel.className = 'outcome-label ' + (won ? 'safe' : 'danger');
+    nextRoundBtn.classList.add('hidden');
 
     if (!won) {
       const isPoison = oppPick.name === '복어';
       deathTitleEl.textContent = 'You Died!';
       deathSubEl.textContent = deathMessageForWinner(oppPick.name, myPick.name);
       deathScreen.classList.toggle('poison', isPoison);
-      if (deathScreenTimer) clearTimeout(deathScreenTimer);
-      deathScreenTimer = setTimeout(() => {
-        deathScreen.classList.add('show');
-        deathScreenTimer = null;
-      }, DEATH_SCREEN_DELAY_MS);
     }
+
+    if (resultRevealTimer) clearInterval(resultRevealTimer);
+    let remaining = RESULT_REVEAL_SECONDS;
+    battleResultCountdownEl.textContent = remaining;
+    resultRevealTimer = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(resultRevealTimer);
+        resultRevealTimer = null;
+        battleResultCountdownEl.textContent = '';
+        if (won) {
+          winScreen.classList.add('show');
+        } else {
+          deathScreen.classList.add('show');
+        }
+      } else {
+        battleResultCountdownEl.textContent = remaining;
+      }
+    }, 1000);
   }
 
   function syncBattleUI(data) {
@@ -1552,6 +1587,24 @@
     const oppLocked = !!data[oppSlot + 'Locked'];
     const round = data.round || 0;
     const bothDone = !!(myPick && oppPick && myLocked && oppLocked);
+
+    // the moment the round number changes, this fires on BOTH clients (not just
+    // whoever clicked "다음 라운드") — cancels any still-pending reveal timer/
+    // screen left over from the previous round, so a stale You Died/You Win
+    // can never pop up after the next round has already started
+    if (round !== activeRound) {
+      activeRound = round;
+      if (resultRevealTimer) { clearInterval(resultRevealTimer); resultRevealTimer = null; }
+      if (swapTimer) { clearInterval(swapTimer); swapTimer = null; }
+      battleResultCountdownEl.textContent = '';
+      deathScreen.classList.remove('show');
+      deathScreen.classList.remove('poison');
+      winScreen.classList.remove('show');
+      swapWindow.classList.add('hidden');
+      swapChoiceBtns.classList.remove('hidden');
+      swapPickGrid.classList.add('hidden');
+      swapPickGrid.innerHTML = '';
+    }
 
     // render a fresh, clickable card grid exactly once per round (unless this
     // round is already fully resolved, e.g. rejoining after the fact) —
@@ -1594,14 +1647,17 @@
   function battleNextRound() {
     if (!db || !roomId) return;
     if (swapTimer) { clearInterval(swapTimer); swapTimer = null; }
-    if (deathScreenTimer) { clearTimeout(deathScreenTimer); deathScreenTimer = null; }
+    if (resultRevealTimer) { clearInterval(resultRevealTimer); resultRevealTimer = null; }
     swapWindow.classList.add('hidden');
     swapChoiceBtns.classList.remove('hidden');
     swapPickGrid.classList.add('hidden');
     swapPickGrid.innerHTML = '';
     disruptHandledRound = -1;
+    battleResultCountdownEl.textContent = '';
+    nextRoundBtn.classList.add('hidden');
     deathScreen.classList.remove('show');
     deathScreen.classList.remove('poison');
+    winScreen.classList.remove('show');
     db.ref('battles/' + roomId).update({
       round: firebase.database.ServerValue.increment(1),
       player1Pick: null,
@@ -1630,6 +1686,7 @@
   roomInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') joinRoom(roomInput.value); });
   leaveRoomBtn.addEventListener('click', leaveRoom);
   nextRoundBtn.addEventListener('click', battleNextRound);
+  winNextBtn.addEventListener('click', battleNextRound);
 </script>
 
 </body>
